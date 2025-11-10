@@ -90,7 +90,7 @@ class AnalysisScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        'Urgence: ${analysisResult.disease.urgency}',
+                        'Urgence: ${_getUrgencyText(analysisResult.disease.urgency)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -108,6 +108,7 @@ class AnalysisScreen extends StatelessWidget {
             _buildInfoCard(
               '💊 Traitement Recommandé',
               analysisResult.disease.treatment,
+              Icons.medical_services,
             ),
 
             const SizedBox(height: 16),
@@ -116,6 +117,7 @@ class AnalysisScreen extends StatelessWidget {
             _buildInfoCard(
               '🛡️ Prévention',
               analysisResult.disease.prevention,
+              Icons.shield,
             ),
 
             const SizedBox(height: 16),
@@ -124,6 +126,7 @@ class AnalysisScreen extends StatelessWidget {
             _buildInfoCard(
               '🌤️ Impact Météo',
               analysisResult.weatherImpact,
+              Icons.wb_sunny,
             ),
 
             const SizedBox(height: 16),
@@ -132,25 +135,13 @@ class AnalysisScreen extends StatelessWidget {
             _buildInfoCard(
               '📋 Recommandation',
               analysisResult.recommendation,
+              Icons.lightbulb,
             ),
 
             const SizedBox(height: 20),
 
-            // Bouton d'action
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.popUntil(context, (route) => route.isFirst);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[700],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text('Retour à l\'accueil'),
-              ),
-            ),
+            // Boutons d'action
+            _buildActionButtons(context),
           ],
         ),
       ),
@@ -158,7 +149,8 @@ class AnalysisScreen extends StatelessWidget {
   }
 
   Widget _buildStatusIcon(String diseaseName) {
-    if (diseaseName == 'Plante Sain') {
+    if (diseaseName.toLowerCase().contains('sain') ||
+        diseaseName.toLowerCase().contains('healthy')) {
       return const Icon(Icons.check_circle, color: Colors.green, size: 40);
     } else {
       return const Icon(Icons.warning, color: Colors.orange, size: 40);
@@ -166,7 +158,7 @@ class AnalysisScreen extends StatelessWidget {
   }
 
   Color _getUrgencyColor(String urgency) {
-    switch (urgency) {
+    switch (urgency.toLowerCase()) {
       case 'high':
         return Colors.red;
       case 'medium':
@@ -178,29 +170,94 @@ class AnalysisScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildInfoCard(String title, String content) {
+  String _getUrgencyText(String urgency) {
+    switch (urgency.toLowerCase()) {
+      case 'high':
+        return 'Élevée';
+      case 'medium':
+        return 'Moyenne';
+      case 'low':
+        return 'Faible';
+      default:
+        return urgency;
+    }
+  }
+
+  Widget _buildInfoCard(String title, String content, IconData icon) {
     return Card(
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+            Icon(icon, color: Colors.green[700], size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.green[800],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    content,
+                    style: const TextStyle(fontSize: 16, height: 1.4),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              content,
-              style: const TextStyle(fontSize: 16),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    return Column(
+      children: [
+        // Bouton réanalyser
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Analyser une autre plante'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[700],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Bouton accueil
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.popUntil(context, (route) => route.isFirst);
+            },
+            icon: const Icon(Icons.home),
+            label: const Text('Retour à l\'accueil'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green[700],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

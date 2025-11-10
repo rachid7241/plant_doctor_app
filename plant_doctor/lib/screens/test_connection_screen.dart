@@ -118,7 +118,7 @@ class _TestConnectionScreenState extends State<TestConnectionScreen> {
 
       setState(() {
         _debugResult =
-            '✅ SUCCÈS!\nStatus: ${response.statusCode}\nRéponse: ${response.body.length > 100 ? response.body.substring(0, 100) + "..." : response.body}';
+            '✅ SUCCÈS!\nStatus: ${response.statusCode}\nRéponse: ${response.body.length > 100 ? "${response.body.substring(0, 100)}..." : response.body}';
       });
     } catch (e) {
       setState(() {
@@ -249,20 +249,20 @@ class _TestConnectionScreenState extends State<TestConnectionScreen> {
             ),
 
             // Informations de débogage
-            Card(
+            const Card(
               child: Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: EdgeInsets.all(12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       '💡 Informations:',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text('URL API actuelle: ${ApiService.baseUrl}'),
                     Text('Ton IP: 192.168.56.1'), // ✅ TON IP ICI
-                    const Text('Port: 8000'),
+                    Text('Port: 8000'),
                   ],
                 ),
               ),

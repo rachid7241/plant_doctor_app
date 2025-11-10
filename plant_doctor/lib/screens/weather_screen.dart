@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../models/weather_data.dart';
 
+/// ✅ Écran météo optimisé avec cache et rafraîchissement intelligent
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({super.key});
 
@@ -14,95 +15,108 @@ class _WeatherScreenState extends State<WeatherScreen> {
   WeatherData? _weatherData;
   bool _isLoading = false;
   String _error = '';
-  String _debugInfo = 'Non initialisé';
+
+  // ✅ Cache des données météo
+  static WeatherData? _cachedWeather;
+  static DateTime? _cacheTime;
+  static const Duration _cacheDuration = Duration(minutes: 10);
 
   @override
   void initState() {
     super.initState();
-    print('🌤️ Écran Météo - initState appelé');
     _loadWeatherData();
   }
 
-  Future<void> _loadWeatherData() async {
-    print('🌤️ Écran Météo - Début chargement données');
+  /// ✅ Charger les données avec cache intelligent
+  Future<void> _loadWeatherData({bool forceRefresh = false}) async {
+    // Vérifier le cache si pas de rafraîchissement forcé
+    if (!forceRefresh && _isCacheValid()) {
+      setState(() {
+        _weatherData = _cachedWeather;
+        _isLoading = false;
+        _error = '';
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
       _error = '';
-      _debugInfo = 'Démarrage du chargement...';
     });
 
     try {
-      // Étape 1: Géolocalisation
-      setState(() {
-        _debugInfo = '📍 Obtention de la position...';
-      });
-      print('🌤️ Étape 1: Obtention position');
-
+      // Obtenir la position
       final position = await LocationService.getCurrentLocation();
-      setState(() {
-        _debugInfo =
-            '📍 Position: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
-      });
-      print(
-          '🌤️ Position obtenue: ${position.latitude}, ${position.longitude}');
 
-      // Étape 2: API Météo
-      setState(() {
-        _debugInfo = '🌤️ Appel API météo...';
-      });
-      print('🌤️ Étape 2: Appel API météo');
-
+      // Obtenir la météo
       final weather = await ApiService.getWeather(
         position.latitude,
         position.longitude,
       );
 
-      print(
-          '🌤️ Données météo reçues: ${weather.temperature}°C, ${weather.conditions}');
+      // ✅ Mettre en cache
+      _cachedWeather = weather;
+      _cacheTime = DateTime.now();
 
       setState(() {
         _weatherData = weather;
-        _debugInfo = '✅ Données chargées avec succès!';
+        _isLoading = false;
+      });
+    } on ApiException catch (e) {
+      setState(() {
+        _error = e.userMessage;
+        _isLoading = false;
       });
     } catch (e) {
-      print('❌ Écran Météo - Erreur: $e');
       setState(() {
-        _error = 'Erreur: $e';
-        _debugInfo = '❌ Échec: $e';
-      });
-    } finally {
-      print('🌤️ Écran Météo - Chargement terminé');
-      setState(() {
+        _error = 'Erreur inattendue: ${e.toString()}';
         _isLoading = false;
       });
     }
   }
 
+  /// ✅ Vérifier si le cache est valide
+  bool _isCacheValid() {
+    if (_cachedWeather == null || _cacheTime == null) return false;
+    final difference = DateTime.now().difference(_cacheTime!);
+    return difference < _cacheDuration;
+  }
+
+  /// ✅ Obtenir le temps restant du cache
+  String _getCacheTimeRemaining() {
+    if (_cacheTime == null) return '';
+    final elapsed = DateTime.now().difference(_cacheTime!);
+    final remaining = _cacheDuration - elapsed;
+
+    if (remaining.isNegative) return '';
+
+    final minutes = remaining.inMinutes;
+    return 'Données mises à jour il y a ${elapsed.inMinutes} min';
+  }
+
   @override
   Widget build(BuildContext context) {
-    print(
-        '🌤️ Écran Météo - build appelé, isLoading: $_isLoading, error: $_error, weatherData: $_weatherData');
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Météo Locale'),
         backgroundColor: Colors.blue[700],
         foregroundColor: Colors.white,
         actions: [
+          // ✅ Bouton de rafraîchissement
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadWeatherData,
-          ),
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            onPressed: () {
-              print('🐛 État actuel:');
-              print('  - isLoading: $_isLoading');
-              print('  - error: $_error');
-              print('  - weatherData: $_weatherData');
-              print('  - debugInfo: $_debugInfo');
-            },
+            icon: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.refresh),
+            onPressed:
+                _isLoading ? null : () => _loadWeatherData(forceRefresh: true),
+            tooltip: 'Rafraîchir',
           ),
         ],
       ),
@@ -111,11 +125,11 @@ class _WeatherScreenState extends State<WeatherScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
+    if (_isLoading && _weatherData == null) {
       return _buildLoading();
     }
 
-    if (_error.isNotEmpty) {
+    if (_error.isNotEmpty && _weatherData == null) {
       return _buildError();
     }
 
@@ -127,19 +141,13 @@ class _WeatherScreenState extends State<WeatherScreen> {
   }
 
   Widget _buildLoading() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 20),
-          const Text('Chargement des données météo...'),
-          const SizedBox(height: 10),
-          Text(
-            _debugInfo,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+          CircularProgressIndicator(),
+          SizedBox(height: 20),
+          Text('Chargement des données météo...'),
         ],
       ),
     );
@@ -147,36 +155,31 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
   Widget _buildError() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: Colors.red),
-          const SizedBox(height: 16),
-          const Text(
-            'Erreur de chargement',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            child: Text(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            const Text(
+              'Erreur de chargement',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
               _error,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 14),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _debugInfo,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _loadWeatherData,
-            child: const Text('Réessayer'),
-          ),
-        ],
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () => _loadWeatherData(forceRefresh: true),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Réessayer'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -192,15 +195,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
             'Aucune donnée météo disponible',
             style: TextStyle(fontSize: 18, color: Colors.grey),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _debugInfo,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: _loadWeatherData,
+            onPressed: () => _loadWeatherData(forceRefresh: true),
             child: const Text('Charger les données'),
           ),
         ],
@@ -210,95 +207,104 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
   Widget _buildWeatherContent() {
     final weather = _weatherData!;
+    final cacheInfo = _getCacheTimeRemaining();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          // Carte principale météo
-          Card(
-            elevation: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  const Icon(Icons.wb_sunny, size: 64, color: Colors.orange),
-                  const SizedBox(height: 16),
-                  Text(
-                    weather.location,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+    return RefreshIndicator(
+      onRefresh: () => _loadWeatherData(forceRefresh: true),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // ✅ Indicateur de cache
+            if (cacheInfo.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+                    const SizedBox(width: 8),
+                    Text(
+                      cacheInfo,
+                      style: TextStyle(fontSize: 12, color: Colors.blue[700]),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildWeatherInfo(
-                          '🌡️', '${weather.temperature}°C', 'Température'),
-                      _buildWeatherInfo(
-                          '💧', '${weather.humidity}%', 'Humidité'),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    weather.conditions,
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ),
 
-          const SizedBox(height: 20),
-
-          // Recommandation
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '💡 Recommandation',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+            // Carte principale météo
+            Card(
+              elevation: 4,
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    const Icon(Icons.wb_sunny, size: 64, color: Colors.orange),
+                    const SizedBox(height: 16),
+                    Text(
+                      weather.location,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(weather.recommendation),
-                ],
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildWeatherInfo(
+                          '🌡️',
+                          '${weather.temperature}°C',
+                          'Température',
+                        ),
+                        _buildWeatherInfo(
+                          '💧',
+                          '${weather.humidity}%',
+                          'Humidité',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      weather.conditions,
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Debug info
-          const SizedBox(height: 20),
-          Card(
-            color: Colors.grey[100],
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '🐛 Debug Info:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _debugInfo,
-                    style:
-                        const TextStyle(fontSize: 10, fontFamily: 'monospace'),
-                  ),
-                ],
+            const SizedBox(height: 20),
+
+            // Recommandation
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '💡 Recommandation',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(weather.recommendation),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
