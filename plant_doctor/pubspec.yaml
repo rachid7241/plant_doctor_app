@@ -11,20 +11,21 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
-  http: ^1.1.0
-  image_picker: ^1.0.4
-  camera: ^0.10.5
-  geolocator: ^11.0.1
-  permission_handler: ^11.0.1
-  provider: ^6.1.1
-  image: ^4.0.17
+  cupertino_icons: ^1.0.8
+  http: ^1.5.0
+  http_parser: ^4.0.2  # ✅ AJOUT CRITIQUE
+  image_picker: ^1.2.0
+  camera: ^0.10.6
+  geolocator: ^11.1.0
+  permission_handler: ^11.4.0
+  provider: ^6.1.5
+  image: ^4.5.4
   shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^3.0.2
 
 flutter:
   uses-material-design: true
